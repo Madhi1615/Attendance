@@ -119,6 +119,12 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 
 .summary-heading { align-items: end; }
 .summary-picker { width: min(470px, 45%); }
+.report-picker { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.report-picker .field { margin-bottom: 0; }
+.report-picker .field:first-child { min-width: 170px; }
+.report-picker .field.grow { min-width: 240px; }
+.report-days-title { margin: 30px 0 14px; }
+.report-day-row { grid-template-columns: 1.5fr 1fr 1fr; }
 .summary-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 16px; }
 .metric { border-radius: 22px; padding: 21px; display: grid; gap: 6px; min-height: 132px; }
 .metric span { color: var(--muted); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .8px; }
@@ -182,6 +188,10 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   .summary-row { grid-template-columns: 1fr auto; gap: 10px; }
   .summary-row > :nth-child(2) { display: none; }
   .header-row > :nth-child(2) { display: none; }
+  .report-picker { width: 100%; margin-top: 18px; }
+  .report-picker .field { flex: 1 1 140px; }
+  .report-day-row { grid-template-columns: 1fr auto auto !important; }
+  .report-day-row > :nth-child(2) { display: inline-flex !important; }
 }
 
 @media (max-width: 430px) {

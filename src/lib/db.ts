@@ -3,6 +3,7 @@ import type {
   AttendanceRecord,
   ClassSummary,
   Department,
+  MonthlyReport,
   Schedule,
   Student,
 } from '../types'
@@ -169,5 +170,67 @@ export async function getClassSummary(scheduleId: string): Promise<ClassSummary>
     daysConducted,
     classAverage,
     students: summaryStudents,
+  }
+}
+
+export async function getMonthlyReport(
+  scheduleId: string,
+  year: number,
+  month: number,
+): Promise<MonthlyReport> {
+  const startDate = `${year}-${String(month).padStart(2, '0')}-01`
+  const lastDay = new Date(year, month, 0).getDate()
+  const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+
+  const [students, recordsResult] = await Promise.all([
+    listStudents(scheduleId),
+    client()
+      .from('attendance_records')
+      .select('student_id, attendance_date, present')
+      .eq('schedule_id', scheduleId)
+      .gte('attendance_date', startDate)
+      .lte('attendance_date', endDate),
+  ])
+
+  if (recordsResult.error) throw recordsResult.error
+  const records = recordsResult.data ?? []
+
+  const dayCounts = new Map<string, { present: number; absent: number }>()
+  const attendedByStudent = new Map<string, number>()
+
+  for (const record of records) {
+    const date = record.attendance_date as string
+    const entry = dayCounts.get(date) ?? { present: 0, absent: 0 }
+    if (record.present) {
+      entry.present += 1
+      const studentId = record.student_id as string
+      attendedByStudent.set(studentId, (attendedByStudent.get(studentId) ?? 0) + 1)
+    } else {
+      entry.absent += 1
+    }
+    dayCounts.set(date, entry)
+  }
+
+  const days = Array.from(dayCounts.entries())
+    .map(([date, counts]) => ({ date, present: counts.present, absent: counts.absent, total: counts.present + counts.absent }))
+    .sort((a, b) => a.date.localeCompare(b.date))
+
+  const daysConducted = days.length
+
+  const summaryStudents = students.map((student) => {
+    const attended = attendedByStudent.get(student.id) ?? 0
+    const percentage = daysConducted === 0 ? 0 : (attended / daysConducted) * 100
+    return { ...student, attended, totalDays: daysConducted, percentage }
+  })
+
+  const classAverage = summaryStudents.length
+    ? summaryStudents.reduce((sum, student) => sum + student.percentage, 0) / summaryStudents.length
+    : 0
+
+  return {
+    daysConducted,
+    classAverage,
+    students: summaryStudents,
+    days,
   }
 }

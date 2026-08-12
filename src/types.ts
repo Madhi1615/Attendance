@@ -38,3 +38,17 @@ export interface ClassSummary {
   classAverage: number
   students: StudentSummary[]
 }
+
+export interface MonthlyDayBreakdown {
+  date: string
+  present: number
+  absent: number
+  total: number
+}
+
+export interface MonthlyReport {
+  daysConducted: number
+  classAverage: number
+  students: StudentSummary[]
+  days: MonthlyDayBreakdown[]
+}

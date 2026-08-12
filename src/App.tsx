@@ -5,6 +5,7 @@ import {
   CalendarDays,
   Check,
   ClipboardCheck,
+  FileText,
   GraduationCap,
   Plus,
   Save,
@@ -20,14 +21,15 @@ import {
   deleteStudent,
   getAttendanceForDate,
   getClassSummary,
+  getMonthlyReport,
   listSchedules,
   listStudents,
   saveAttendance,
 } from './lib/db'
 import { isSupabaseConfigured } from './lib/supabase'
-import type { ClassSummary, Department, Schedule, Student } from './types'
+import type { ClassSummary, Department, MonthlyReport, Schedule, Student } from './types'
 
-type View = 'attendance' | 'schedules' | 'summary'
+type View = 'attendance' | 'schedules' | 'summary' | 'report'
 
 const departments: Department[] = ['CSE', 'ECE', 'IT']
 const years = [1, 2, 3, 4] as const
@@ -192,6 +194,7 @@ function App() {
           <NavButton active={view === 'attendance'} icon={<CalendarDays size={18} />} onClick={() => setView('attendance')}>Attendance</NavButton>
           <NavButton active={view === 'schedules'} icon={<Settings size={18} />} onClick={() => setView('schedules')}>Schedules</NavButton>
           <NavButton active={view === 'summary'} icon={<BarChart3 size={18} />} onClick={() => setView('summary')}>Summary</NavButton>
+          <NavButton active={view === 'report'} icon={<FileText size={18} />} onClick={() => setView('report')}>Report</NavButton>
         </nav>
       </header>
 
@@ -242,12 +245,23 @@ function App() {
             onError={setError}
           />
         )}
+
+        {view === 'report' && (
+          <ReportView
+            schedules={schedules}
+            selectedScheduleId={selectedScheduleId}
+            onScheduleChange={setSelectedScheduleId}
+            refreshKey={summaryRefreshKey}
+            onError={setError}
+          />
+        )}
       </main>
 
       <nav className="mobile-nav" aria-label="Mobile navigation">
         <NavButton active={view === 'attendance'} icon={<CalendarDays size={20} />} onClick={() => setView('attendance')}>Attendance</NavButton>
         <NavButton active={view === 'schedules'} icon={<Settings size={20} />} onClick={() => setView('schedules')}>Schedules</NavButton>
         <NavButton active={view === 'summary'} icon={<BarChart3 size={20} />} onClick={() => setView('summary')}>Summary</NavButton>
+        <NavButton active={view === 'report'} icon={<FileText size={20} />} onClick={() => setView('report')}>Report</NavButton>
       </nav>
     </div>
   )
@@ -701,6 +715,144 @@ function SummaryView({
             </div>
           ) : (
             <div className="mini-empty">No students in this schedule.</div>
+          )}
+        </>
+      )}
+    </section>
+  )
+}
+
+function currentMonthString() {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
+
+function monthLabel(monthValue: string) {
+  const [year, month] = monthValue.split('-').map(Number)
+  return new Date(year, month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+}
+
+function dayLabel(dateValue: string) {
+  return new Date(`${dateValue}T00:00:00`).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })
+}
+
+function ReportView({
+  schedules,
+  selectedScheduleId,
+  onScheduleChange,
+  refreshKey,
+  onError,
+}: {
+  schedules: Schedule[]
+  selectedScheduleId: string
+  onScheduleChange: (id: string) => void
+  refreshKey: number
+  onError: (message: string) => void
+}) {
+  const [month, setMonth] = useState(currentMonthString)
+  const [report, setReport] = useState<MonthlyReport | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!selectedScheduleId || !month) {
+      setReport(null)
+      return
+    }
+    const [year, monthNumber] = month.split('-').map(Number)
+    let active = true
+    setLoading(true)
+    getMonthlyReport(selectedScheduleId, year, monthNumber)
+      .then((data) => {
+        if (active) setReport(data)
+      })
+      .catch((err) => onError(err instanceof Error ? err.message : 'Could not load report.'))
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => { active = false }
+  }, [month, onError, refreshKey, selectedScheduleId])
+
+  if (!schedules.length) {
+    return <EmptyState icon={<FileText size={34} />} title="No report yet" text="Create a schedule and save attendance first." />
+  }
+
+  return (
+    <section>
+      <div className="page-heading summary-heading">
+        <div>
+          <p className="eyebrow">Monthly report</p>
+          <h1>{monthLabel(month)}</h1>
+          <p>Attendance conducted this month, broken down by day and by student.</p>
+        </div>
+        <div className="report-picker">
+          <label className="field">
+            <span>Month</span>
+            <input type="month" value={month} onChange={(event) => setMonth(event.target.value)} />
+          </label>
+          <SchedulePicker schedules={schedules} value={selectedScheduleId} onChange={onScheduleChange} />
+        </div>
+      </div>
+
+      {loading || !report ? (
+        <div className="summary-cards"><div className="metric skeleton" /><div className="metric skeleton" /></div>
+      ) : (
+        <>
+          <div className="summary-cards">
+            <div className="metric">
+              <span>Days conducted</span>
+              <strong>{report.daysConducted}</strong>
+              <small>Distinct saved attendance dates in {monthLabel(month)}</small>
+            </div>
+            <div className="metric">
+              <span>Class average</span>
+              <strong>{report.daysConducted ? `${report.classAverage.toFixed(1)}%` : '—'}</strong>
+              <small>Average of current students, this month</small>
+            </div>
+          </div>
+
+          {report.students.length ? (
+            <div className="summary-list">
+              <div className="summary-row header-row">
+                <span>Student</span><span>Attended</span><span>Attendance</span>
+              </div>
+              {report.students.map((student) => (
+                <div className="summary-row" key={student.id}>
+                  <div className="summary-student">
+                    <span className="student-avatar small">{student.name.trim().charAt(0).toUpperCase()}</span>
+                    <strong>{student.name}</strong>
+                  </div>
+                  <span>{student.attended} / {student.totalDays}</span>
+                  <div className="percent-cell">
+                    <strong>{student.totalDays ? `${student.percentage.toFixed(1)}%` : '—'}</strong>
+                    <div className="progress"><span style={{ width: `${Math.min(100, student.percentage)}%` }} /></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mini-empty">No students in this schedule.</div>
+          )}
+
+          <div className="panel-title report-days-title">
+            <span className="icon-bubble alt"><CalendarDays size={20} /></span>
+            <div><h2>Daily breakdown</h2><p>Present and absent counts for each conducted day.</p></div>
+          </div>
+
+          {report.days.length ? (
+            <div className="summary-list">
+              <div className="summary-row header-row report-day-row">
+                <span>Date</span><span>Present</span><span>Absent</span>
+              </div>
+              {report.days.map((day) => (
+                <div className="summary-row report-day-row" key={day.date}>
+                  <strong>{dayLabel(day.date)}</strong>
+                  <span className="count-chip present"><Check size={13} /> {day.present}</span>
+                  <span className="count-chip absent"><X size={13} /> {day.absent}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mini-empty">No attendance saved for this month yet.</div>
           )}
         </>
       )}
