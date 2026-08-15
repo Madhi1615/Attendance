@@ -1,9 +1,5 @@
 # ClassTap Attendance
 
-> This repository also contains **KORA**, a separate shift-planning/quoting/invoicing product
-> for German security firms, in [`kora/`](kora/README.md). It has its own app, database schema,
-> and deploy — see that README for setup. Everything below this line is about ClassTap only.
-
 A focused attendance web app for one professor teaching multiple class groups. The most-used action is intentionally optimized to:
 
 **Choose schedule/date → tap only absent students → Save Attendance.**
