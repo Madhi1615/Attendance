@@ -1,0 +1,341 @@
+/* KORA design system — brief section 9. System font stack only: no Google Fonts requests,
+   no bundled font files to self-host either — this satisfies the GDPR font rule trivially. */
+
+:root {
+  --bg: #f4f4f2;
+  --card: #ffffff;
+  --ink: #0a0a0a;
+  --grey: #8a8a8a;
+  --lime: #b8ff35;
+  --lime-line: #8fc22a;
+  --line: #e4e4e0;
+  --danger: #d1453a;
+  --radius: 14px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  margin: 0 0 4px;
+}
+
+h1 .sub,
+h2 .sub,
+h3 .sub {
+  display: block;
+  color: var(--grey);
+  font-weight: 500;
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  font-family: inherit;
+}
+
+.app-shell {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 20px 64px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 18px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn-primary {
+  background: var(--lime);
+  color: var(--ink);
+}
+
+.btn-primary:hover {
+  background: var(--lime-line);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.field label {
+  font-size: 13px;
+  color: var(--grey);
+}
+
+.field input,
+.field select,
+.field textarea {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 15px;
+  font-family: inherit;
+  background: var(--card);
+  color: var(--ink);
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: 2px solid var(--lime);
+  outline-offset: -1px;
+}
+
+.top-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--card);
+}
+
+.top-nav .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.brand-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--ink);
+  display: grid;
+  place-items: center;
+}
+
+.brand-mark span {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--lime);
+}
+
+.top-nav nav {
+  display: flex;
+  gap: 18px;
+  font-size: 14px;
+}
+
+.top-nav nav a {
+  text-decoration: none;
+  color: var(--grey);
+}
+
+.top-nav nav a.active {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.pill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--line);
+  color: var(--ink);
+}
+
+.pill-lime {
+  background: var(--lime);
+}
+
+.pill-danger {
+  background: #fbe4e2;
+  color: var(--danger);
+}
+
+.planner-grid {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 800px) {
+  .planner-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.staff-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.staff-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  cursor: grab;
+  font-size: 14px;
+}
+
+.staff-card.blocked {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.shift-slot {
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  padding: 14px;
+  min-height: 90px;
+  margin-bottom: 12px;
+  background: var(--card);
+}
+
+.shift-slot.drag-over {
+  border-color: var(--lime-line);
+  background: #f8ffe9;
+}
+
+.assigned-guard-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 13px;
+  margin: 4px 6px 0 0;
+}
+
+.cost-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cost-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: var(--grey);
+}
+
+.cost-row.total {
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 20px;
+}
+
+input[type="range"] {
+  accent-color: var(--lime-line);
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 700px) {
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+th {
+  color: var(--grey);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.center-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.center-screen .card {
+  width: 100%;
+  max-width: 380px;
+}
+
+.muted {
+  color: var(--grey);
+  font-size: 13px;
+}
+
+.error-text {
+  color: var(--danger);
+  font-size: 13px;
+}
