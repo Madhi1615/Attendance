@@ -1,12 +1,13 @@
 -- KORA schema
 -- Run this once in Supabase SQL Editor (Project → SQL Editor → New query → paste → Run).
--- Requires pgcrypto for gen_random_uuid(), enabled by default on Supabase.
+-- Safe to run more than once — every statement is idempotent, so re-running this file to pick
+-- up a later change won't error on objects that already exist.
 
 -- =========================================================================
 -- Tenancy
 -- =========================================================================
 
-create table companies (
+create table if not exists companies (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   whatsapp_dispatcher_phone text, -- E.164, e.g. +4915112345678. Where the AI assistant sends proactive messages.
@@ -15,7 +16,7 @@ create table companies (
 );
 
 -- Links a Supabase Auth user to a company, so a dispatcher can only ever see their own company's data.
-create table company_members (
+create table if not exists company_members (
   company_id uuid not null references companies(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
   role text not null default 'dispatcher' check (role in ('owner', 'dispatcher')),
@@ -37,7 +38,7 @@ $$;
 -- People & credentials
 -- =========================================================================
 
-create table guards (
+create table if not exists guards (
   id uuid primary key default gen_random_uuid(),
   company_id uuid not null references companies(id) on delete cascade,
   name text not null,
@@ -47,12 +48,12 @@ create table guards (
   active boolean not null default true,
   created_at timestamptz not null default now()
 );
-create index guards_company_idx on guards(company_id);
-create unique index guards_portal_token_idx on guards(portal_token);
+create index if not exists guards_company_idx on guards(company_id);
+create unique index if not exists guards_portal_token_idx on guards(portal_token);
 
 -- Not verified against the federal Bewacherregister in real time — no public API exists for that (§7 BewachRV).
 -- These rows record what the register's own portal confirmed to the employer, so KORA can hard-block scheduling.
-create table credentials (
+create table if not exists credentials (
   id uuid primary key default gen_random_uuid(),
   guard_id uuid not null references guards(id) on delete cascade,
   company_id uuid not null references companies(id) on delete cascade,
@@ -63,15 +64,15 @@ create table credentials (
   expires_at date not null,
   created_at timestamptz not null default now()
 );
-create index credentials_guard_idx on credentials(guard_id);
-create index credentials_company_idx on credentials(company_id);
-create index credentials_expiry_idx on credentials(expires_at);
+create index if not exists credentials_guard_idx on credentials(guard_id);
+create index if not exists credentials_company_idx on credentials(company_id);
+create index if not exists credentials_expiry_idx on credentials(expires_at);
 
 -- =========================================================================
 -- Clients, requests, quotes
 -- =========================================================================
 
-create table clients (
+create table if not exists clients (
   id uuid primary key default gen_random_uuid(),
   company_id uuid not null references companies(id) on delete cascade,
   name text not null,
@@ -79,9 +80,9 @@ create table clients (
   contact_phone text,
   created_at timestamptz not null default now()
 );
-create index clients_company_idx on clients(company_id);
+create index if not exists clients_company_idx on clients(company_id);
 
-create table requests (
+create table if not exists requests (
   id uuid primary key default gen_random_uuid(),
   company_id uuid not null references companies(id) on delete cascade,
   client_id uuid references clients(id) on delete set null,
@@ -95,9 +96,9 @@ create table requests (
   status text not null default 'new' check (status in ('new', 'quoted', 'planned', 'executed', 'invoiced', 'cancelled')),
   created_at timestamptz not null default now()
 );
-create index requests_company_idx on requests(company_id);
+create index if not exists requests_company_idx on requests(company_id);
 
-create table quotes (
+create table if not exists quotes (
   id uuid primary key default gen_random_uuid(),
   request_id uuid not null references requests(id) on delete cascade,
   company_id uuid not null references companies(id) on delete cascade,
@@ -109,13 +110,13 @@ create table quotes (
   breakdown jsonb not null default '{}'::jsonb, -- itemised per-guard/per-hour lines shown on the PDF
   created_at timestamptz not null default now()
 );
-create index quotes_request_idx on quotes(request_id);
+create index if not exists quotes_request_idx on quotes(request_id);
 
 -- =========================================================================
 -- Shifts & assignments
 -- =========================================================================
 
-create table shifts (
+create table if not exists shifts (
   id uuid primary key default gen_random_uuid(),
   company_id uuid not null references companies(id) on delete cascade,
   request_id uuid not null references requests(id) on delete cascade,
@@ -124,10 +125,10 @@ create table shifts (
   qualification_required text not null default 'unterrichtung' check (qualification_required in ('unterrichtung', 'sachkunde', 'meister')),
   created_at timestamptz not null default now()
 );
-create index shifts_company_idx on shifts(company_id);
-create index shifts_request_idx on shifts(request_id);
+create index if not exists shifts_company_idx on shifts(company_id);
+create index if not exists shifts_request_idx on shifts(request_id);
 
-create table shift_assignments (
+create table if not exists shift_assignments (
   id uuid primary key default gen_random_uuid(),
   shift_id uuid not null references shifts(id) on delete cascade,
   guard_id uuid not null references guards(id) on delete cascade,
@@ -137,8 +138,8 @@ create table shift_assignments (
   created_at timestamptz not null default now(),
   unique (shift_id, guard_id)
 );
-create index shift_assignments_shift_idx on shift_assignments(shift_id);
-create index shift_assignments_guard_idx on shift_assignments(guard_id);
+create index if not exists shift_assignments_shift_idx on shift_assignments(shift_id);
+create index if not exists shift_assignments_guard_idx on shift_assignments(guard_id);
 
 -- Hard block at the database level: no valid credential, no spot in the plan.
 -- This runs even if the frontend check is bypassed, so the rule can never be worked around.
@@ -188,7 +189,7 @@ begin
 end;
 $$;
 
-create trigger trg_enforce_credential_and_availability
+create or replace trigger trg_enforce_credential_and_availability
 before insert or update on shift_assignments
 for each row execute function enforce_credential_and_availability();
 
@@ -196,7 +197,7 @@ for each row execute function enforce_credential_and_availability();
 -- Rate cards (state + qualification specific tariff rates and premiums)
 -- =========================================================================
 
-create table rate_cards (
+create table if not exists rate_cards (
   id uuid primary key default gen_random_uuid(),
   company_id uuid not null references companies(id) on delete cascade,
   federal_state text not null,
@@ -213,7 +214,7 @@ create table rate_cards (
 -- Invoices & audit records
 -- =========================================================================
 
-create table invoices (
+create table if not exists invoices (
   id uuid primary key default gen_random_uuid(),
   company_id uuid not null references companies(id) on delete cascade,
   request_id uuid not null references requests(id) on delete cascade,
@@ -227,13 +228,13 @@ create table invoices (
   created_at timestamptz not null default now(),
   unique (company_id, invoice_number)
 );
-create index invoices_company_idx on invoices(company_id);
+create index if not exists invoices_company_idx on invoices(company_id);
 
 -- =========================================================================
 -- WhatsApp message log (for the AI assistant + audit trail — never stores documents, only text/links)
 -- =========================================================================
 
-create table whatsapp_messages (
+create table if not exists whatsapp_messages (
   id uuid primary key default gen_random_uuid(),
   company_id uuid references companies(id) on delete cascade,
   guard_id uuid references guards(id) on delete set null,
@@ -244,7 +245,7 @@ create table whatsapp_messages (
   wa_message_id text,
   created_at timestamptz not null default now()
 );
-create index whatsapp_messages_company_idx on whatsapp_messages(company_id);
+create index if not exists whatsapp_messages_company_idx on whatsapp_messages(company_id);
 
 -- =========================================================================
 -- Row Level Security
@@ -263,48 +264,60 @@ alter table rate_cards enable row level security;
 alter table invoices enable row level security;
 alter table whatsapp_messages enable row level security;
 
+drop policy if exists "members can read own company" on companies;
 create policy "members can read own company" on companies
   for select using (id in (select current_company_ids()));
 
+drop policy if exists "members can read own membership rows" on company_members;
 create policy "members can read own membership rows" on company_members
   for select using (user_id = auth.uid());
 
+drop policy if exists "members can manage own company guards" on guards;
 create policy "members can manage own company guards" on guards
   for all using (company_id in (select current_company_ids()))
   with check (company_id in (select current_company_ids()));
 
+drop policy if exists "members can manage own company credentials" on credentials;
 create policy "members can manage own company credentials" on credentials
   for all using (company_id in (select current_company_ids()))
   with check (company_id in (select current_company_ids()));
 
+drop policy if exists "members can manage own company clients" on clients;
 create policy "members can manage own company clients" on clients
   for all using (company_id in (select current_company_ids()))
   with check (company_id in (select current_company_ids()));
 
+drop policy if exists "members can manage own company requests" on requests;
 create policy "members can manage own company requests" on requests
   for all using (company_id in (select current_company_ids()))
   with check (company_id in (select current_company_ids()));
 
+drop policy if exists "members can manage own company quotes" on quotes;
 create policy "members can manage own company quotes" on quotes
   for all using (company_id in (select current_company_ids()))
   with check (company_id in (select current_company_ids()));
 
+drop policy if exists "members can manage own company shifts" on shifts;
 create policy "members can manage own company shifts" on shifts
   for all using (company_id in (select current_company_ids()))
   with check (company_id in (select current_company_ids()));
 
+drop policy if exists "members can manage own company shift_assignments" on shift_assignments;
 create policy "members can manage own company shift_assignments" on shift_assignments
   for all using (company_id in (select current_company_ids()))
   with check (company_id in (select current_company_ids()));
 
+drop policy if exists "members can manage own company rate_cards" on rate_cards;
 create policy "members can manage own company rate_cards" on rate_cards
   for all using (company_id in (select current_company_ids()))
   with check (company_id in (select current_company_ids()));
 
+drop policy if exists "members can manage own company invoices" on invoices;
 create policy "members can manage own company invoices" on invoices
   for all using (company_id in (select current_company_ids()))
   with check (company_id in (select current_company_ids()));
 
+drop policy if exists "members can read own company whatsapp_messages" on whatsapp_messages;
 create policy "members can read own company whatsapp_messages" on whatsapp_messages
   for select using (company_id in (select current_company_ids()));
 
